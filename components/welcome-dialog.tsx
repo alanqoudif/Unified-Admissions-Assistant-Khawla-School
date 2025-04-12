@@ -49,8 +49,6 @@ export function WelcomeDialog() {
             <span>
               Admission
               <br />
-              أعزائي الطلبه
-              <br />
               المساعد الذكي للقبول الموحد
             </span>
           </DialogTitle>
