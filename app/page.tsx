@@ -144,7 +144,11 @@ export default function ChatPage() {
               <AvatarImage src="/school-logo.png" alt="شعار مدرسة خولة بنت حكيم" />
               <AvatarFallback className="bg-purple-700">أ</AvatarFallback>
             </Avatar>
-            <h1 className="text-lg md:text-xl font-bold">مساعد القبول الموحد</h1>
+            <h1 className="text-lg md:text-xl font-bold">
+              Admission
+              <br />
+              المساعد الذكي للقبول الموحد
+            </h1>
           </div>
           <div className="flex items-center">
             <Button
