@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import MetaViewport from "./meta-viewport"
 
 export const metadata: Metadata = {
-  title: "خولة - مساعدك الذكي للقبول الموحد",
+  title: "Admission المساعد الذكي للقبول الموحد",
   description: "مساعد ذكي للإجابة على أسئلتك حول القبول الموحد للمؤسسات التعليمية العالية في عُمان",
     generator: 'v0.dev'
 }
