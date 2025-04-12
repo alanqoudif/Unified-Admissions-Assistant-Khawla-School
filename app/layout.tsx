@@ -7,7 +7,7 @@ import MetaViewport from "./meta-viewport"
 
 export const metadata: Metadata = {
   title: "Admission المساعد الذكي للقبول الموحد",
-  description: "مساعد ذكي للإجابة على أسئلتك حول القبول الموحد للمؤسسات التعليمية العالية في عُمان",
+  description: "مساعد ذكي للإجابة على أسئلتك حول القبول الموحد لمؤسسات التعليم العالي في سلطنة عُمان",
     generator: 'v0.dev'
 }
 

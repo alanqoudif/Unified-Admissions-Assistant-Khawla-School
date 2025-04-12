@@ -44,15 +44,15 @@ export function WelcomeDialog() {
         dir="rtl"
       >
         <DialogHeader className="p-4 pb-2 bg-gradient-to-r from-purple-100 to-indigo-50">
-          <DialogTitle className="text-xl sm:text-2xl font-bold text-purple-800 flex items-center justify-center gap-2">
-            <School className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
+          <DialogTitle className="text-xl sm:text-2xl font-bold text-purple-900 flex items-center justify-center gap-2">
+            <School className="h-5 w-5 sm:h-6 sm:w-6 text-purple-800" />
             <span>
               Admission
               <br />
               المساعد الذكي للقبول الموحد
             </span>
           </DialogTitle>
-          <DialogDescription className="text-center text-slate-600 text-sm sm:text-base">
+          <DialogDescription className="text-center text-slate-700 text-sm sm:text-base">
             دليلك الذكي للإجابة على جميع استفساراتك حول القبول الموحد
           </DialogDescription>
         </DialogHeader>
@@ -67,13 +67,13 @@ export function WelcomeDialog() {
             <div className="grid grid-cols-1 gap-3">
               <Card>
                 <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-700">
-                    <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-900">
+                    <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-purple-800" />
                     <span>محادثة ذكية</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-1 px-3">
-                  <p className="text-xs sm:text-sm text-slate-600">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     تفاعل مع مساعد ذكي يجيب على جميع أسئلتك حول القبول الموحد بدقة وسرعة.
                   </p>
                 </CardContent>
@@ -81,13 +81,13 @@ export function WelcomeDialog() {
 
               <Card>
                 <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-700">
-                    <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-900">
+                    <Search className="h-4 w-4 sm:h-5 sm:w-5 text-purple-800" />
                     <span>معلومات شاملة</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-1 px-3">
-                  <p className="text-xs sm:text-sm text-slate-600">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     احصل على معلومات دقيقة من دليل القبول الموحد الرسمي لمؤسسات التعليم العالي.
                   </p>
                 </CardContent>
@@ -95,13 +95,13 @@ export function WelcomeDialog() {
 
               <Card>
                 <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-700">
-                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-900">
+                    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-purple-800" />
                     <span>دليل متكامل</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-1 px-3">
-                  <p className="text-xs sm:text-sm text-slate-600">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     يغطي جميع جوانب القبول الموحد من التخصصات والشروط إلى إجراءات التسجيل والمفاضلة.
                   </p>
                 </CardContent>
@@ -109,13 +109,13 @@ export function WelcomeDialog() {
 
               <Card>
                 <CardHeader className="py-2 px-3">
-                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-700">
-                    <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-purple-900">
+                    <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-purple-800" />
                     <span>توجيه مهني</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="py-1 px-3">
-                  <p className="text-xs sm:text-sm text-slate-600">
+                  <p className="text-xs sm:text-sm text-slate-700">
                     مصمم من قبل أخصائيات التوجيه المهني لمساعدتك في اتخاذ القرارات المناسبة لمستقبلك الأكاديمي.
                   </p>
                 </CardContent>
@@ -126,26 +126,26 @@ export function WelcomeDialog() {
           <TabsContent value="howto" className="p-3 sm:p-4">
             <Card>
               <CardHeader className="py-3 px-3">
-                <CardTitle className="text-lg sm:text-xl text-purple-700 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                <CardTitle className="text-lg sm:text-xl text-purple-900 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-800" />
                   <span>كيفية استخدام المساعد</span>
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
+                <CardDescription className="text-xs sm:text-sm text-slate-700">
                   استفد من مساعد القبول الموحد بأقصى درجة
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 py-1 px-3">
                 <div className="space-y-1">
-                  <h3 className="font-bold text-sm sm:text-base text-purple-700">1. اطرح سؤالك</h3>
-                  <p className="text-xs sm:text-sm text-slate-600">
+                  <h3 className="font-bold text-sm sm:text-base text-purple-900">1. اطرح سؤالك</h3>
+                  <p className="text-xs sm:text-sm text-slate-700">
                     اكتب سؤالك في حقل الإدخال أسفل الشاشة واضغط على زر "إرسال".
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-bold text-sm sm:text-base text-purple-700">2. أسئلة مقترحة</h3>
-                  <p className="text-xs sm:text-sm text-slate-600">يمكنك سؤال المساعد عن:</p>
-                  <ul className="text-xs sm:text-sm text-slate-600 list-disc list-inside space-y-1">
+                  <h3 className="font-bold text-sm sm:text-base text-purple-900">2. أسئلة مقترحة</h3>
+                  <p className="text-xs sm:text-sm text-slate-700">يمكنك سؤال المساعد عن:</p>
+                  <ul className="text-xs sm:text-sm text-slate-700 list-disc list-inside space-y-1">
                     <li>شروط القبول في تخصص معين</li>
                     <li>المؤسسات التي تقدم تخصصًا محددًا</li>
                     <li>مواعيد التسجيل والقبول</li>
@@ -154,8 +154,8 @@ export function WelcomeDialog() {
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="font-bold text-sm sm:text-base text-purple-700">3. متابعة المحادثة</h3>
-                  <p className="text-xs sm:text-sm text-slate-600">
+                  <h3 className="font-bold text-sm sm:text-base text-purple-900">3. متابعة المحادثة</h3>
+                  <p className="text-xs sm:text-sm text-slate-700">
                     يمكنك متابعة المحادثة وطرح أسئلة إضافية للحصول على مزيد من التفاصيل.
                   </p>
                 </div>
@@ -165,7 +165,7 @@ export function WelcomeDialog() {
         </Tabs>
 
         <DialogFooter className="p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-indigo-50">
-          <Button onClick={handleClose} className="w-full bg-purple-600 hover:bg-purple-700">
+          <Button onClick={handleClose} className="w-full bg-purple-800 hover:bg-purple-900">
             ابدأ الاستخدام الآن
           </Button>
         </DialogFooter>
