@@ -49,6 +49,8 @@ export function WelcomeDialog() {
             <span>
               Admission
               <br />
+              أعزائي الطلبه
+              <br />
               المساعد الذكي للقبول الموحد
             </span>
           </DialogTitle>
@@ -116,7 +118,7 @@ export function WelcomeDialog() {
                 </CardHeader>
                 <CardContent className="py-1 px-3">
                   <p className="text-xs sm:text-sm text-slate-700">
-                    مصمم من قبل أخصائيات التوجيه المهني لمساعدتك في اتخاذ القرارات المناسبة لمستقبلك الأكاديمي.
+                    مصمم لمساعدتك في اتخاذ القرارات المناسبة لمستقبلك الأكاديمي.
                   </p>
                 </CardContent>
               </Card>
