@@ -46,7 +46,11 @@ export function WelcomeDialog() {
         <DialogHeader className="p-4 pb-2 bg-gradient-to-r from-purple-100 to-indigo-50">
           <DialogTitle className="text-xl sm:text-2xl font-bold text-purple-800 flex items-center justify-center gap-2">
             <School className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-            <span>مرحباً بك في مساعد القبول الموحد</span>
+            <span>
+              Admission
+              <br />
+              المساعد الذكي للقبول الموحد
+            </span>
           </DialogTitle>
           <DialogDescription className="text-center text-slate-600 text-sm sm:text-base">
             دليلك الذكي للإجابة على جميع استفساراتك حول القبول الموحد
