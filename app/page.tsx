@@ -124,8 +124,12 @@ export default function ChatPage() {
     }
   }
 
+  // تحديث وظيفة resetWelcomeDialog لتكون أكثر وضوحًا
   const resetWelcomeDialog = () => {
+    // إزالة علامة "hasSeenWelcome" من التخزين المحلي
+    // هذا سيجعل البطاقة المنبثقة تظهر مرة أخرى في المرة القادمة
     localStorage.removeItem("hasSeenWelcome")
+    // تحديث حالة لإعادة تحميل مكون WelcomeDialog
     setShowWelcomeAgain(!showWelcomeAgain)
   }
 

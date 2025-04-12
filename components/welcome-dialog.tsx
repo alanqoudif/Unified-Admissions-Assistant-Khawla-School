@@ -22,13 +22,17 @@ export function WelcomeDialog() {
   useEffect(() => {
     // التحقق مما إذا كان المستخدم قد رأى الصفحة المنبثقة من قبل
     const hasSeenWelcome = localStorage.getItem("hasSeenWelcome")
+    // فقط إذا لم يسبق للمستخدم رؤية البطاقة، سيتم عرضها
     if (!hasSeenWelcome) {
       setIsOpen(true)
+    } else {
+      // التأكد من أن البطاقة مغلقة للمستخدمين العائدين
+      setIsOpen(false)
     }
   }, [])
 
   const handleClose = () => {
-    // تخزين أن المستخدم قد رأى الصفحة المنبثقة
+    // تخزين أن المستخدم قد رأى الصفحة المنبثقة بشكل دائم
     localStorage.setItem("hasSeenWelcome", "true")
     setIsOpen(false)
   }
