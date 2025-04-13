@@ -30,10 +30,6 @@ const LOADING_MESSAGES = [
   "لحظة واحدة، أبحث عن المعلومات الدقيقة لك...",
 ]
 
-// أضف هذا المتغير بعد تعريف المتغيرات الأخرى
-const welcomeMessage =
-  "أعزائي الطلبه، مرحباً بكم! أنا مساعد القبول الموحد، وأنا هنا لمساعدتكم في كل ما يتعلق بدليل القبول الموحد لمؤسسات التعليم العالي. كيف يمكنني مساعدتكم اليوم؟"
-
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -54,7 +50,6 @@ export default function ChatPage() {
   const [lastUserMessage, setLastUserMessage] = useState<string>("")
   const [isRetrying, setIsRetrying] = useState(false)
   const [silentRetry, setSilentRetry] = useState(false)
-  const [guideContent, setGuideContent] = useState<string>("")
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -66,30 +61,7 @@ export default function ChatPage() {
 
   // التركيز على حقل الإدخال عند تحميل الصفحة
   useEffect(() => {
-    // إضافة رسالة الترحيب الافتراضية عند تحميل الصفحة
-    setMessages([
-      {
-        id: "welcome-message",
-        role: "assistant",
-        content: welcomeMessage,
-      },
-    ])
-
-    // باقي الكود يبقى كما هو
-    const fetchGuideContent = async () => {
-      try {
-        const response = await fetch("/api/guide-content")
-        if (!response.ok) {
-          throw new Error("Failed to fetch guide content")
-        }
-        const data = await response.json()
-        setGuideContent(data.content)
-      } catch (error) {
-        console.error("Error fetching guide content:", error)
-      }
-    }
-
-    fetchGuideContent()
+    inputRef.current?.focus()
   }, [])
 
   const getRandomLoadingMessage = () => {
