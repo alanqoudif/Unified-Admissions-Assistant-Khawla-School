@@ -1,6 +1,54 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { studentGuideContent } from "@/data/student-guide"
 
+// تخزين مؤقت لتتبع عدد الطلبات لكل مستخدم
+// سيتم استخدام عنوان IP كمعرف للمستخدم
+const userRequestsMap = new Map<string, { count: number; resetTime: number }>()
+
+// تعريف حدود الاستخدام
+const RATE_LIMIT = 30 // عدد الطلبات المسموح بها
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // مدة النافذة الزمنية (ساعة بالمللي ثانية)
+
+// وظيفة للتحقق من تجاوز حد الاستخدام
+function checkRateLimit(ip: string): { limited: boolean; remaining: number; resetTime: number } {
+  const now = Date.now()
+
+  // إذا لم يكن هناك سجل لهذا المستخدم، قم بإنشاء سجل جديد
+  if (!userRequestsMap.has(ip)) {
+    userRequestsMap.set(ip, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW,
+    })
+    return { limited: false, remaining: RATE_LIMIT - 1, resetTime: now + RATE_LIMIT_WINDOW }
+  }
+
+  // استرجاع معلومات المستخدم
+  const userInfo = userRequestsMap.get(ip)!
+
+  // إذا انتهت مدة النافذة الزمنية، أعد تعيين العداد
+  if (now > userInfo.resetTime) {
+    userInfo.count = 1
+    userInfo.resetTime = now + RATE_LIMIT_WINDOW
+    userRequestsMap.set(ip, userInfo)
+    return { limited: false, remaining: RATE_LIMIT - 1, resetTime: userInfo.resetTime }
+  }
+
+  // إذا تجاوز المستخدم الحد، ارجع حالة محدودة
+  if (userInfo.count >= RATE_LIMIT) {
+    return { limited: true, remaining: 0, resetTime: userInfo.resetTime }
+  }
+
+  // زيادة عدد الطلبات للمستخدم
+  userInfo.count += 1
+  userRequestsMap.set(ip, userInfo)
+
+  return {
+    limited: false,
+    remaining: RATE_LIMIT - userInfo.count,
+    resetTime: userInfo.resetTime,
+  }
+}
+
 // وظيفة لتقسيم النص إلى أجزاء أصغر
 function splitTextIntoChunks(text: string, maxChunkSize = 8000): string[] {
   const chunks: string[] = []
@@ -66,10 +114,11 @@ function findRelevantInformation(query: string, guideContent: string): string {
   return relevantChunks.join("\n\n")
 }
 
-// قائمة بالنماذج المتاحة للاستخدام مرتبة حسب الأولوية
+// تعديل قائمة النماذج المتاحة للاستخدام بحيث يكون النموذج المطلوب هو الأول في القائمة
 const MODELS = {
   // النماذج المجانية تمامًا - نبدأ بها دائمًا
   FREE_TIER: [
+    "google/gemini-2.0-flash-001",
     "meta-llama/llama-4-scout:free",
     "undi95/toppy-m-7b",
     "google/gemini-2.5-pro-exp-03-25:free",
@@ -91,6 +140,29 @@ const MODELS = {
 
 export async function POST(req: NextRequest) {
   try {
+    // الحصول على عنوان IP للمستخدم
+    const ip = req.headers.get("x-forwarded-for") || "unknown-ip"
+
+    // التحقق من حد الاستخدام
+    const rateLimitCheck = checkRateLimit(ip)
+
+    // إذا تجاوز المستخدم الحد، ارجع خطأ
+    if (rateLimitCheck.limited) {
+      const resetTimeInMinutes = Math.ceil((rateLimitCheck.resetTime - Date.now()) / (60 * 1000))
+      return NextResponse.json(
+        {
+          error: `لقد وصلت إلى الحد المسموح به من الأسئلة (${RATE_LIMIT} سؤال في الساعة). يرجى المحاولة مرة أخرى بعد ${resetTimeInMinutes} دقيقة.`,
+          rateLimitInfo: {
+            limited: true,
+            remaining: 0,
+            resetTimeInMinutes,
+            totalLimit: RATE_LIMIT,
+          },
+        },
+        { status: 429 },
+      )
+    }
+
     const { messages } = await req.json()
 
     // Get the last user message
@@ -259,8 +331,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // إرجاع الاستجابة الناجحة
-    return NextResponse.json({ response: successfulResponse })
+    // إرجاع الاستجابة الناجحة مع معلومات حد الاستخدام
+    return NextResponse.json({
+      response: successfulResponse,
+      rateLimitInfo: {
+        limited: false,
+        remaining: rateLimitCheck.remaining,
+        resetTimeInMinutes: Math.ceil((rateLimitCheck.resetTime - Date.now()) / (60 * 1000)),
+        totalLimit: RATE_LIMIT,
+      },
+    })
   } catch (error) {
     console.error("Error processing chat request:", error)
     // تحسين رسالة الخطأ للمستخدم

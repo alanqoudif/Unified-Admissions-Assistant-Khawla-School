@@ -11,11 +11,19 @@ import { Separator } from "@/components/ui/separator"
 import { Send, Sparkles, HelpCircle, AlertCircle, RefreshCw } from "lucide-react"
 import { useMobile } from "@/hooks/use-mobile"
 import { WelcomeDialog } from "@/components/welcome-dialog"
+import { MessageQuota } from "@/components/message-quota"
 
 type Message = {
   role: "user" | "assistant" | "error"
   content: string
   id?: number
+}
+
+type RateLimitInfo = {
+  limited: boolean
+  remaining: number
+  resetTimeInMinutes: number
+  totalLimit: number
 }
 
 // إضافة مجموعة متنوعة من رسائل التحميل محايدة الجنس
@@ -29,6 +37,9 @@ const LOADING_MESSAGES = [
   "جاري تحليل سؤالك للعثور على أفضل إجابة...",
   "لحظة واحدة، أبحث عن المعلومات الدقيقة لك...",
 ]
+
+// رسالة الخطأ عند تجاوز حد الاستخدام
+const RATE_LIMIT_ERROR = "لقد وصلت إلى الحد المسموح به من الأسئلة"
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([
@@ -50,6 +61,12 @@ export default function ChatPage() {
   const [lastUserMessage, setLastUserMessage] = useState<string>("")
   const [isRetrying, setIsRetrying] = useState(false)
   const [silentRetry, setSilentRetry] = useState(false)
+  const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo>({
+    limited: false,
+    remaining: 30,
+    resetTimeInMinutes: 60,
+    totalLimit: 30,
+  })
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -69,6 +86,7 @@ export default function ChatPage() {
     return LOADING_MESSAGES[randomIndex]
   }
 
+  // تعديل handleSubmit لإضافة معالجة خطأ تجاوز حد الاستخدام
   const handleSubmit = async (e: React.FormEvent, retryMessage?: string) => {
     e.preventDefault()
 
@@ -120,7 +138,20 @@ export default function ChatPage() {
       const data = await response.json()
 
       if (!response.ok || data.error) {
+        // التحقق مما إذا كان الخطأ هو تجاوز حد الاستخدام
+        if (response.status === 429 && data.error.includes(RATE_LIMIT_ERROR)) {
+          // تحديث معلومات حد الاستخدام
+          if (data.rateLimitInfo) {
+            setRateLimitInfo(data.rateLimitInfo)
+          }
+          throw new Error(data.error)
+        }
         throw new Error(data.error || `Error ${response.status}: ${response.statusText}`)
+      }
+
+      // تحديث معلومات حد الاستخدام إذا كانت متوفرة
+      if (data.rateLimitInfo) {
+        setRateLimitInfo(data.rateLimitInfo)
       }
 
       // إزالة رسالة التحميل وإضافة الرد
@@ -165,7 +196,8 @@ export default function ChatPage() {
             .filter((msg) => msg.id !== loadingMessageId)
             .concat({
               role: "error",
-              content: "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.",
+              content:
+                error instanceof Error ? error.message : "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.",
             }),
         )
       }
@@ -245,11 +277,20 @@ export default function ChatPage() {
       <main className="flex-1 container mx-auto p-2 md:p-6 flex flex-col">
         <Card className="flex-1 flex flex-col overflow-hidden shadow-xl border-purple-200 bg-white/80 backdrop-blur-sm">
           <CardHeader className="py-2 px-3 border-b bg-gradient-to-r from-purple-50 to-indigo-50">
-            <CardTitle className="text-center text-purple-800 flex items-center justify-center gap-1 text-sm md:text-base">
-              <Sparkles className="h-4 w-4 text-purple-600" />
-              <span>دليل القبول الموحد لمؤسسات التعليم العالي</span>
-              <Sparkles className="h-4 w-4 text-purple-600" />
-            </CardTitle>
+            <div className="flex flex-col items-center">
+              <CardTitle className="text-center text-purple-800 flex items-center justify-center gap-1 text-sm md:text-base mb-2">
+                <Sparkles className="h-4 w-4 text-purple-600" />
+                <span>دليل القبول الموحد لمؤسسات التعليم العالي</span>
+                <Sparkles className="h-4 w-4 text-purple-600" />
+              </CardTitle>
+
+              {/* عرض معلومات الرصيد المتبقي */}
+              <MessageQuota
+                remaining={rateLimitInfo.remaining}
+                total={rateLimitInfo.totalLimit}
+                resetTimeInMinutes={rateLimitInfo.resetTimeInMinutes}
+              />
+            </div>
           </CardHeader>
           <CardContent className="flex-1 p-0">
             <ScrollArea className="h-[calc(100vh-16rem)] md:h-[calc(100vh-18rem)]">
@@ -337,11 +378,11 @@ export default function ChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="اكتب سؤالك هنا..."
                 className="flex-1 text-right h-10 md:h-12 text-sm md:text-base border-purple-200 focus-visible:ring-purple-400"
-                disabled={isLoading || retryCount >= maxRetries || isRetrying}
+                disabled={isLoading || retryCount >= maxRetries || isRetrying || rateLimitInfo.limited}
               />
               <Button
                 type="submit"
-                disabled={isLoading || !input.trim() || retryCount >= maxRetries || isRetrying}
+                disabled={isLoading || !input.trim() || retryCount >= maxRetries || isRetrying || rateLimitInfo.limited}
                 className="h-10 md:h-12 px-3 md:px-4 bg-purple-600 hover:bg-purple-700"
               >
                 {isLoading || isRetrying ? (
