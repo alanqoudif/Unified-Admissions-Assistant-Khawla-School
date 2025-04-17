@@ -35,7 +35,7 @@ export default function ChatPage() {
     {
       role: "assistant",
       content:
-        "مرحباً بك! أنا Admission، مساعد القبول الموحد، وأنا هنا لمساعدتك في كل ما يتعلق بدليل الطالب للالتحاق بمؤسسات التعليم العالي. كيف يمكنني مساعدتك اليوم؟",
+        "مرحباً بك! أنا Admission، مساعد القبول الموحد، وأنا هنا لمساعدتك في كل ما يتعلق بدليل القبول الموحد لمؤسسات التعليم العالي. كيف يمكنني مساعدتك اليوم؟",
     },
   ])
   const [input, setInput] = useState("")
@@ -223,7 +223,7 @@ export default function ChatPage() {
               <AvatarFallback className="bg-purple-700">أ</AvatarFallback>
             </Avatar>
             <h1 className="text-lg md:text-xl font-bold text-center">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-2xl md:text-4xl font-black drop-shadow-[0_3px_5px_rgba(0,0,0,0.5)] tracking-wide mb-2 relative">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-400 to-pink-400 text-2xl md:text-3xl font-extrabold drop-shadow-md tracking-wide animate-pulse">
                 Admission
               </span>
               <br />
@@ -249,7 +249,7 @@ export default function ChatPage() {
           <CardHeader className="py-2 px-3 border-b bg-gradient-to-r from-purple-50 to-indigo-50">
             <CardTitle className="text-center text-purple-800 flex items-center justify-center gap-1 text-sm md:text-base">
               <Sparkles className="h-4 w-4 text-purple-600" />
-              <span>دليل الطالب للالتحاق بمؤسسات التعليم العالي</span>
+              <span>دليل القبول الموحد لمؤسسات التعليم العالي</span>
               <Sparkles className="h-4 w-4 text-purple-600" />
             </CardTitle>
           </CardHeader>
@@ -308,11 +308,11 @@ export default function ChatPage() {
                           </div>
                         ) : (
                           <div>
-                            {/* {message.role === "assistant" && (
+                            {message.role === "assistant" && (
                               <p className="text-xs font-semibold text-purple-700 mb-1">
                                 أنا Admission، مساعد القبول الموحد
                               </p>
-                            )} */}
+                            )}
                             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                             {message.role === "error" && lastUserMessage && (
                               <Button
