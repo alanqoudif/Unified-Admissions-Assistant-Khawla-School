@@ -49,7 +49,7 @@ export function WelcomeDialog() {
             <span>
               Admission
               <br />
-              المساعد الذكي للقبول الموحد
+              أخصائية التوجيه المهني للقبول الموحد
             </span>
           </DialogTitle>
           <DialogDescription className="text-center text-slate-700 text-sm sm:text-base">

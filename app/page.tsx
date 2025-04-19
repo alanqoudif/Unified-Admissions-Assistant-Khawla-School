@@ -11,6 +11,14 @@ import { Separator } from "@/components/ui/separator"
 import { Send, Sparkles, HelpCircle, AlertCircle, RefreshCw } from "lucide-react"
 import { useMobile } from "@/hooks/use-mobile"
 import { WelcomeDialog } from "@/components/welcome-dialog"
+// أضف استيراد مكون الأسئلة المقترحة ووظائف توليد الاقتراحات
+import { SuggestedQuestions } from "@/components/suggested-questions"
+import {
+  generateSuggestedQuestions,
+  generateFollowUpQuestions,
+  recordSuggestionClick,
+  resetConversationContext,
+} from "@/utils/question-suggestions"
 
 type Message = {
   role: "user" | "assistant" | "error"
@@ -27,7 +35,7 @@ const LOADING_MESSAGES = [
   "دعني أفكر قليلاً في سؤالك...",
   "أنا أراجع المعلومات في دليل الطالب...",
   "جاري تحليل سؤالك للعثور على أفضل إجابة...",
-  "لحظة واحدة، أبحث عن المعلومات الدقيقة لك...",
+  "لحظة واحدة، أبحث عن المعلومات الدقة لك...",
 ]
 
 export default function ChatPage() {
@@ -35,7 +43,7 @@ export default function ChatPage() {
     {
       role: "assistant",
       content:
-        "مرحباً بك! أنا Admission، مساعد القبول الموحد، وأنا هنا لمساعدتك في كل ما يتعلق بدليل القبول الموحد لمؤسسات التعليم العالي. كيف يمكنني مساعدتك اليوم؟",
+        "مرحباً بك! أنا أخصائية التوجيه المهني في مدرسة خولة بنت حكيم، وأنا هنا لمساعدتك في كل ما يتعلق بالقبول الموحد واختيار التخصص المناسب لميولك وقدراتك. كيف يمكنني مساعدتك اليوم؟",
     },
   ])
   const [input, setInput] = useState("")
@@ -50,6 +58,9 @@ export default function ChatPage() {
   const [lastUserMessage, setLastUserMessage] = useState<string>("")
   const [isRetrying, setIsRetrying] = useState(false)
   const [silentRetry, setSilentRetry] = useState(false)
+  // أضف حالات جديدة للأسئلة المقترحة بعد تعريف حالة messages
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -69,6 +80,29 @@ export default function ChatPage() {
     return LOADING_MESSAGES[randomIndex]
   }
 
+  // أضف وظيفة للتعامل مع اختيار سؤال مقترح
+  const handleSelectQuestion = (question: string) => {
+    setInput(question)
+    setSuggestedQuestions([]) // إخفاء الاقتراحات بعد الاختيار
+    // تسجيل النقر على الاقتراح
+    recordSuggestionClick(question)
+    // التركيز على حقل الإدخال
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 100)
+  }
+
+  // أضف وظيفة لتحديث الاقتراحات عند تغيير الإدخال
+  const updateSuggestions = (value: string) => {
+    if (value.trim().length > 2) {
+      const suggestions = generateSuggestedQuestions(value)
+      setSuggestedQuestions(suggestions)
+    } else {
+      setSuggestedQuestions([])
+    }
+  }
+
+  // تحديث وظيفة handleSubmit لتحسين التعامل مع الأسئلة المتعددة
   const handleSubmit = async (e: React.FormEvent, retryMessage?: string) => {
     e.preventDefault()
 
@@ -81,6 +115,18 @@ export default function ChatPage() {
     if (!retryMessage) {
       setLastUserMessage(messageContent)
     }
+
+    // تحقق مما إذا كانت الرسالة تحتوي على أسئلة متعددة
+    const hasMultipleQuestions =
+      messageContent.split("؟").length > 2 ||
+      messageContent.includes("\n") ||
+      messageContent.includes("1-") ||
+      messageContent.includes("1.") ||
+      messageContent.includes("أولاً") ||
+      messageContent.includes("ثانياً") ||
+      messageContent.includes(" و ") ||
+      messageContent.includes(" ثم ") ||
+      messageContent.includes(" أيضا ")
 
     const userMessage: Message = {
       role: "user",
@@ -101,7 +147,12 @@ export default function ChatPage() {
 
     // إضافة رسالة التحميل فقط إذا لم تكن محاولة صامتة
     if (!silentRetry) {
-      setMessages((prev) => [...prev, { role: "assistant", content: getRandomLoadingMessage(), id: loadingMessageId }])
+      // إذا كانت هناك أسئلة متعددة، أضف رسالة تحميل خاصة
+      const loadingMessage = hasMultipleQuestions
+        ? "جاري معالجة أسئلتك المتعددة، قد يستغرق هذا بعض الوقت..."
+        : getRandomLoadingMessage()
+
+      setMessages((prev) => [...prev, { role: "assistant", content: loadingMessage, id: loadingMessageId }])
     }
 
     try {
@@ -117,7 +168,18 @@ export default function ChatPage() {
         }),
       })
 
-      const data = await response.json()
+      // قراءة النص الخام أولاً
+      const rawResponseText = await response.text()
+
+      // محاولة تحليل النص كـ JSON
+      let data
+      try {
+        data = JSON.parse(rawResponseText)
+      } catch (jsonError) {
+        console.error("Error parsing JSON response:", jsonError)
+        console.error("Raw response:", rawResponseText.substring(0, 200) + "...")
+        throw new Error(`خطأ في تحليل استجابة الخادم: ${jsonError.message}`)
+      }
 
       if (!response.ok || data.error) {
         throw new Error(data.error || `Error ${response.status}: ${response.statusText}`)
@@ -151,6 +213,9 @@ export default function ChatPage() {
         }
       })
 
+      // أضف هذا السطر بعد تحديث الرسائل لتوليد أسئلة المتابعة:
+      setFollowUpQuestions(generateFollowUpQuestions(data.response))
+
       // إعادة تعيين عداد المحاولات عند النجاح
       setRetryCount(0)
       setIsRetrying(false)
@@ -165,7 +230,8 @@ export default function ChatPage() {
             .filter((msg) => msg.id !== loadingMessageId)
             .concat({
               role: "error",
-              content: "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.",
+              content:
+                error instanceof Error ? error.message : "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.",
             }),
         )
       }
@@ -211,9 +277,28 @@ export default function ChatPage() {
     setShowWelcomeAgain(!showWelcomeAgain)
   }
 
+  // إضافة وظيفة لإعادة تعيين سياق المحادثة عند بدء محادثة جديدة
+  const resetChat = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "مرحباً بك! أنا أخصائية التوجيه المهني في مدرسة خولة بنت حكيم، وأنا هنا لمساعدتك في كل ما يتعلق بالقبول الموحد واختيار التخصص المناسب لميولك وقدراتك. كيف يمكنني مساعدتك اليوم؟",
+      },
+    ])
+    setInput("")
+    setSuggestedQuestions([])
+    setFollowUpQuestions([])
+    setLastUserMessage("")
+    resetConversationContext()
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-purple-50 via-purple-100 to-indigo-50">
       <WelcomeDialog key={showWelcomeAgain ? "show" : "hide"} />
+      <div className="bg-purple-100 text-purple-800 p-2 rounded-lg text-sm text-center mb-2">
+        يمكنك طرح عدة أسئلة في نفس الوقت وسأجيب عليها جميعًا!
+      </div>
 
       <header className="bg-gradient-to-r from-purple-800 to-indigo-700 text-white py-3 px-3 shadow-lg sticky top-0 z-10">
         <div className="container mx-auto flex items-center justify-between">
@@ -223,7 +308,7 @@ export default function ChatPage() {
               <AvatarFallback className="bg-purple-700">أ</AvatarFallback>
             </Avatar>
             <h1 className="text-lg md:text-xl font-bold text-center">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-400 to-pink-400 text-2xl md:text-3xl font-extrabold drop-shadow-md tracking-wide animate-pulse">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-2xl md:text-4xl font-black drop-shadow-[0_3px_5px_rgba(0,0,0,0.5)] tracking-wide mb-2 relative">
                 Admission
               </span>
               <br />
@@ -249,7 +334,7 @@ export default function ChatPage() {
           <CardHeader className="py-2 px-3 border-b bg-gradient-to-r from-purple-50 to-indigo-50">
             <CardTitle className="text-center text-purple-800 flex items-center justify-center gap-1 text-sm md:text-base">
               <Sparkles className="h-4 w-4 text-purple-600" />
-              <span>دليل القبول الموحد لمؤسسات التعليم العالي</span>
+              <span>دليل الطالب للالتحاق بمؤسسات التعليم العالي</span>
               <Sparkles className="h-4 w-4 text-purple-600" />
             </CardTitle>
           </CardHeader>
@@ -308,12 +393,20 @@ export default function ChatPage() {
                           </div>
                         ) : (
                           <div>
-                            {message.role === "assistant" && (
-                              <p className="text-xs font-semibold text-purple-700 mb-1">
-                                أنا Admission، مساعد القبول الموحد
-                              </p>
-                            )}
-                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                            <p className="text-sm whitespace-pre-wrap">
+                              {/* تحسين عرض الإجابات المتعددة */}
+                              {message.content.includes("السؤال 1:") || message.content.includes("الإجابة 1:") ? (
+                                <div className="space-y-3">
+                                  {message.content.split(/(?=السؤال \d+:|الإجابة \d+:)/).map((part, i) => (
+                                    <div key={i} className={i > 0 ? "pt-2 border-t border-purple-200" : ""}>
+                                      {part}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                message.content
+                              )}
+                            </p>
                             {message.role === "error" && lastUserMessage && (
                               <Button
                                 variant="outline"
@@ -333,15 +426,37 @@ export default function ChatPage() {
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
+                {followUpQuestions.length > 0 &&
+                  messages.length > 0 &&
+                  messages[messages.length - 1].role === "assistant" && (
+                    <div className="mt-4">
+                      <SuggestedQuestions
+                        questions={followUpQuestions}
+                        onSelectQuestion={handleSelectQuestion}
+                        className="bg-purple-50/50 p-3 rounded-lg border border-purple-100"
+                      />
+                    </div>
+                  )}
               </div>
             </ScrollArea>
           </CardContent>
           <CardFooter className="p-2 border-t bg-white">
+            {suggestedQuestions.length > 0 && (
+              <SuggestedQuestions
+                questions={suggestedQuestions}
+                onSelectQuestion={handleSelectQuestion}
+                className="mb-2"
+              />
+            )}
             <form onSubmit={handleSubmit} className="flex gap-2 w-full">
               <Input
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setInput(value)
+                  updateSuggestions(value)
+                }}
                 placeholder="اكتب سؤالك هنا..."
                 className="flex-1 text-right h-10 md:h-12 text-sm md:text-base border-purple-200 focus-visible:ring-purple-400"
                 disabled={isLoading || retryCount >= maxRetries || isRetrying}
