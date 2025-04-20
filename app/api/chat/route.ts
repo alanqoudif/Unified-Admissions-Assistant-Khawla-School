@@ -1,9 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { studentGuide } from "@/data/student-guide"
-import { admissionReference } from "@/data/admission-reference"
-import { isPasswordRecoveryQuestion } from "@/utils/guide-loader"
+import { studentGuideContent } from "@/data/student-guide"
 
-// وظيفة محسنة لتقسيم النص إلى أجزاء أصغر
+// وظيفة لتقسيم النص إلى أجزاء أصغر
 function splitTextIntoChunks(text: string, maxChunkSize = 8000): string[] {
   const chunks: string[] = []
   let currentChunk = ""
@@ -33,268 +31,65 @@ function splitTextIntoChunks(text: string, maxChunkSize = 8000): string[] {
   return chunks
 }
 
-// وظيفة محسنة لتقسيم الرسالة إلى أسئلة متعددة
-function splitIntoQuestions(message: string): string[] {
-  // تقسيم الرسالة بناءً على علامات الاستفهام
-  const byQuestionMarks = message
-    .split("؟")
-    .filter((q) => q.trim().length > 0)
-    .map((q) => q.trim() + "؟")
+// وظيفة للبحث عن المعلومات ذات الصلة في دليل الطالب
+function findRelevantInformation(query: string, guideContent: string): string {
+  // تقسيم دليل الطالب إلى أجزاء
+  const chunks = splitTextIntoChunks(guideContent)
 
-  // إذا وجدنا أسئلة بعلامات استفهام، نعيدها
-  if (byQuestionMarks.length > 1) {
-    return byQuestionMarks
-  }
+  // تحويل الاستعلام والأجزاء إلى أحرف صغيرة للمقارنة
+  const lowerQuery = query.toLowerCase()
 
-  // محاولة تقسيم بناءً على الأرقام أو النقاط
-  const numberPattern = /^\s*(\d+[-.)]+|-|\*)\s+/
-  const lines = message.split("\n").filter((line) => line.trim().length > 0)
+  // البحث عن الكلمات الرئيسية في الاستعلام
+  const keywords = lowerQuery.split(/\s+/).filter((word) => word.length > 3)
 
-  const numberedQuestions = lines.filter((line) => numberPattern.test(line))
-  if (numberedQuestions.length > 1) {
-    return numberedQuestions.map((q) => q.trim())
-  }
+  // تصنيف الأجزاء حسب عدد الكلمات الرئيسية التي تحتوي عليها
+  const rankedChunks = chunks
+    .map((chunk) => {
+      const lowerChunk = chunk.toLowerCase()
+      let score = 0
 
-  // محاولة تقسيم بناءً على كلمات مفتاحية تشير إلى أسئلة متعددة
-  const keywordPatterns = [
-    /\s+و\s+(?=ما|كيف|متى|هل|لماذا|أين|من|كم)/i,
-    /\s+ثم\s+(?=ما|كيف|متى|هل|لماذا|أين|من|كم)/i,
-    /\s+أيضا\s+(?=ما|كيف|متى|هل|لماذا|أين|من|كم)/i,
-    /\s+كذلك\s+(?=ما|كيف|متى|هل|لماذا|أين|من|كم)/i,
-    /\s+بالإضافة\s+(?=ما|كيف|متى|هل|لماذا|أين|من|كم)/i,
-  ]
-
-  for (const pattern of keywordPatterns) {
-    if (pattern.test(message)) {
-      const parts = message.split(pattern)
-      if (parts.length > 1) {
-        // تحويل الأجزاء إلى أسئلة كاملة
-        return parts.map((part) => part.trim() + (part.endsWith("؟") ? "" : "؟"))
-      }
-    }
-  }
-
-  // إذا لم نتمكن من تقسيم الرسالة، نعيدها كسؤال واحد
-  return [message]
-}
-
-// وظيفة محسنة للبحث عن المعلومات ذات الصلة لأسئلة متعددة
-function findRelevantInformationForMultipleQuestions(questions: string[]): string {
-  // استخدام النص الكامل من دليل الطالب لجميع الأسئلة
-  const fullGuideContent = studentGuide + "\n\n" + admissionReference
-
-  // إضافة تعليمات خاصة للأسئلة المتعددة
-  let allRelevantInfo = "فيما يلي الأسئلة المتعددة التي يجب الإجابة عليها من دليل الطالب:\n\n"
-
-  questions.forEach((question, index) => {
-    allRelevantInfo += `السؤال ${index + 1}: ${question}\n`
-  })
-
-  allRelevantInfo += "\n\nمحتوى دليل الطالب الكامل:\n\n" + fullGuideContent
-
-  return allRelevantInfo
-}
-
-// وظيفة محسنة للبحث عن المعلومات ذات الصلة في دليل الطالب ومرجع القبول
-function findRelevantInformation(query: string): string {
-  // استخدام النص الكامل من دليل الطالب
-  // هذا سيضمن أن AI يقرأ المحتوى الكامل
-  const fullGuideContent = studentGuide + "\n\n" + admissionReference
-
-  // تحسين رسالة النظام لتشمل المحتوى الكامل
-  return fullGuideContent
-}
-
-// تحديث اسم النموذج للاستخدام مع OpenRouter
-const MODEL = "openai/gpt-4.1-nano"
-
-// معلومات إضافية عن استعادة كلمة المرور
-const passwordRecoveryInfo = `
-معلومات استعادة كلمة المرور:
-لاستعادة كلمة المرور الخاصة بحساب القبول الموحد، يرجى اتباع الخطوات التالية:
-1. زيارة موقع مركز القبول الموحد الإلكتروني (www.heac.gov.om)
-2. النقر على رابط "نسيت كلمة المرور" في صفحة تسجيل الدخول
-3. إدخال رقم البطاقة المدنية أو رقم الجواز ورقم الهاتف المسجل في النظام
-4. سيتم إرسال رمز التحقق إلى رقم الهاتف المسجل
-5. إدخال رمز التحقق وتعيين كلمة مرور جديدة
-
-في حالة عدم استلام رمز التحقق أو وجود أي مشكلة أخرى، يرجى التواصل مباشرة مع مركز القبول الموحد على الأرقام التالية:
-- هاتف: 24340900
-- البريد الإلكتروني: info@heac.gov.om
-`
-
-// استخدام OpenRouter API مباشرة بدلاً من استخدامه كخطة بديلة
-async function callOpenRouterAPI(messages: any[], systemMessage: string) {
-  console.log("Calling OpenRouter API with model:", MODEL)
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "sk-or-demo"
-
-  // تحويل الرسائل إلى تنسيق OpenRouter
-  const openRouterMessages = []
-
-  // إضافة رسالة النظام
-  openRouterMessages.push({
-    role: "system",
-    content: systemMessage,
-  })
-
-  // إضافة باقي الرسائل
-  messages.forEach((msg) => {
-    openRouterMessages.push({
-      role: msg.role,
-      content: msg.content,
-    })
-  })
-
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://khawlabinthakeem.com", // Replace with your actual site URL
-        "X-Title": "Khawla Bint Hakeem School Chatbot", // Replace with your actual site name
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: openRouterMessages,
-        temperature: 0.2, // خفض درجة الحرارة لتقليل الهلوسة
-        max_tokens: 8192, // زيادة الحد الأقصى للرموز للإجابات الطويلة
-      }),
-    })
-
-    // التحقق من حالة الاستجابة
-    if (!response.ok) {
-      const statusCode = response.status
-      let errorMessage = `OpenRouter API returned status code: ${statusCode}`
-
-      try {
-        // محاولة قراءة نص الخطأ
-        const errorText = await response.text()
-        console.error(`OpenRouter API error (${statusCode}):`, errorText)
-        errorMessage = `OpenRouter API error: ${errorText.substring(0, 100)}...`
-      } catch (e) {
-        console.error("Could not read error response text:", e)
+      // حساب عدد الكلمات الرئيسية الموجودة في الجزء
+      for (const keyword of keywords) {
+        if (lowerChunk.includes(keyword)) {
+          score += 1
+        }
       }
 
-      throw new Error(errorMessage)
-    }
+      return { chunk, score }
+    })
+    .sort((a, b) => b.score - a.score)
 
-    // قراءة النص الخام أولاً للتحقق
-    const rawResponseText = await response.text()
+  // اختيار الأجزاء الأكثر صلة (بحد أقصى 3 أجزاء)
+  const relevantChunks = rankedChunks.slice(0, 3).map((item) => item.chunk)
 
-    // محاولة تحليل النص كـ JSON
-    let data
-    try {
-      data = JSON.parse(rawResponseText)
-    } catch (jsonError) {
-      console.error("Error parsing OpenRouter API JSON response:", jsonError)
-      console.error("Raw OpenRouter response:", rawResponseText.substring(0, 200) + "...")
-      throw new Error(`Invalid JSON response from OpenRouter: ${jsonError.message}`)
-    }
-
-    // التحقق من صحة بنية الاستجابة
-    if (!data || !data.choices || !data.choices.length || !data.choices[0].message) {
-      console.error("Unexpected OpenRouter API response structure:", data)
-      throw new Error("Invalid response structure from OpenRouter API")
-    }
-
-    // استخراج الاستجابة
-    const assistantResponse = data.choices[0].message.content
-
-    return assistantResponse
-  } catch (error) {
-    console.error("Error calling OpenRouter API:", error)
-    throw error
-  }
+  // دمج الأجزاء ذات الصلة
+  return relevantChunks.join("\n\n")
 }
 
-// Function to use alternative models as a fallback
-async function fallbackToAlternativeModels(messages: any[], systemMessage: string) {
-  console.log("Attempting to use alternative models as a fallback...")
-  const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "sk-or-demo"
-  const alternativeModels = [
+// تعديل قائمة النماذج المتاحة للاستخدام بحيث يكون النموذج المطلوب هو الأول في القائمة
+const MODELS = {
+  // النماذج المجانية تمامًا - نبدأ بها دائمًا
+  FREE_TIER: [
+    "google/gemini-2.0-flash-001",
+    "meta-llama/llama-4-scout:free",
+    "undi95/toppy-m-7b",
+    "google/gemini-2.5-pro-exp-03-25:free",
+    "mistralai/mistral-7b-instruct",
+    "meta-llama/llama-3-8b-instruct",
+    "nousresearch/nous-hermes-2-mixtral-8x7b-dpo",
+  ],
+  // النماذج ذات التكلفة المنخفضة - ننتقل إليها إذا فشلت النماذج المجانية
+  BUDGET_TIER: [
+    "meta-llama/llama-4-maverick",
+    "anthropic/claude-instant-v1",
     "openai/gpt-3.5-turbo",
-    "anthropic/claude-3-haiku",
-    "mistralai/mistral-medium",
+    "mistralai/mixtral-8x7b-instruct",
     "google/gemini-1.5-pro-latest",
-  ]
-
-  for (const model of alternativeModels) {
-    console.log(`Trying alternative model: ${model}`)
-    try {
-      // تحويل الرسائل إلى تنسيق OpenRouter
-      const openRouterMessages = []
-
-      // إضافة رسالة النظام
-      openRouterMessages.push({
-        role: "system",
-        content: systemMessage,
-      })
-
-      // إضافة باقي الرسائل
-      messages.forEach((msg) => {
-        openRouterMessages.push({
-          role: msg.role,
-          content: msg.content,
-        })
-      })
-
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://khawlabinthakeem.com", // Replace with your actual site URL
-          "X-Title": "Khawla Bint Hakeem School Chatbot", // Replace with your actual site name
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: openRouterMessages,
-          temperature: 0.2,
-          max_tokens: 2048,
-        }),
-      })
-
-      // التحقق من حالة الاستجابة
-      if (!response.ok) {
-        const statusCode = response.status
-        console.error(`Alternative model ${model} returned status code: ${statusCode}`)
-        continue // Skip to the next model
-      }
-
-      // قراءة النص الخام أولاً للتحقق
-      const rawResponseText = await response.text()
-
-      // محاولة تحليل النص كـ JSON
-      let data
-      try {
-        data = JSON.parse(rawResponseText)
-      } catch (jsonError) {
-        console.error(`Error parsing JSON response from model ${model}:`, jsonError)
-        continue // Skip to the next model
-      }
-
-      // التحقق من صحة بنية الاستجابة
-      if (!data || !data.choices || !data.choices.length || !data.choices[0].message) {
-        console.error(`Unexpected API response structure from model ${model}:`, data)
-        continue
-      }
-
-      // استخراج الاستجابة
-      const assistantResponse = data.choices[0].message.content
-
-      return assistantResponse
-    } catch (error) {
-      console.error(`Error with alternative model ${model}:`, error)
-      continue
-    }
-  }
-
-  console.error("All alternative models failed.")
-  throw new Error("Failed to get a response from any model.")
+  ],
+  // النماذج المتقدمة - نستخدمها كملاذ أخير
+  PREMIUM_TIER: ["anthropic/claude-3-opus", "openai/gpt-4o", "google/gemini-1.5-flash"],
 }
 
-// Update the POST function to use OpenRouter API directly
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
@@ -306,13 +101,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No user message found" }, { status: 400 })
     }
 
-    // تقسيم الرسالة إلى أسئلة متعددة إذا كانت تحتوي على أكثر من سؤال
-    const userQuestions = splitIntoQuestions(lastUserMessage.content)
-    console.log(`Detected ${userQuestions.length} questions in the user message`)
-
     // إضافة وظيفة لتحسين صياغة الأسئلة
     function enhanceUserQuery(query: string): string {
-      return `بناءً على المعلومات الموجودة في دليل الطالب للالتحاق بمؤسسات التعليم العالي ومرجع القبول الموحد، ${query}`
+      return `بناءً على المعلومات الموجودة في دليل الطالب للقبول الموحد، ${query}`
     }
 
     // تحسين السؤال الأخير من المستخدم
@@ -333,84 +124,148 @@ export async function POST(req: NextRequest) {
       content: enhancedUserMessage.content,
     })
 
-    // البحث عن المعلومات ذات الصلة في دليل الطالب ومرجع القبول بناءً على سؤال المستخدم
-    let relevantContent
-
-    // إذا كان هناك أكثر من سؤال، ابحث عن معلومات لكل سؤال
-    if (userQuestions.length > 1) {
-      relevantContent = findRelevantInformationForMultipleQuestions(userQuestions)
-      console.log(`Found relevant content for multiple questions (${relevantContent.length} characters)`)
-    } else {
-      relevantContent = findRelevantInformation(lastUserMessage.content)
-      console.log(`Found relevant content (${relevantContent.length} characters)`)
+    // التحقق من وجود مفتاح API
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.error("OpenRouter API key is missing")
+      return NextResponse.json({ error: "مفتاح API غير متوفر. يرجى التواصل مع مسؤول النظام." }, { status: 500 })
     }
 
-    // إذا كان السؤال يتعلق بكلمة المرور، أضف معلومات استعادة كلمة المرور
-    if (isPasswordRecoveryQuestion(lastUserMessage.content)) {
-      console.log("Password recovery question detected, adding password recovery info")
-      relevantContent = passwordRecoveryInfo + "\n\n" + relevantContent
-    }
+    // البحث عن المعلومات ذات الصلة في دليل الطالب بناءً على سؤال المستخدم
+    const relevantGuideContent = findRelevantInformation(lastUserMessage.content, studentGuideContent)
+    console.log(`Found relevant guide content (${relevantGuideContent.length} characters)`)
 
-    // تحديث الرسالة النظامية لتأكيد التكيف مع أسلوب المستخدم وتجنب الهلوسة
-    const systemMessage = `أنت أخصائية التوجيه المهني في مدرسة خولة بنت حكيم للتعليم الأساسي(10-12) في ظفار، عُمان.
-مهمتك هي مساعدة الطلاب والطالبات بالإجابة على أسئلتهم المتعلقة بالقبول الموحد للمؤسسات التعليمية العالية في عُمان، وتوجيههم مهنياً لاختيار التخصصات المناسبة لميولهم وقدراتهم.
+    // إعداد الرسالة النظامية مع المحتوى ذي الصلة فقط
+    const systemMessage = `أنت مساعد القبول الموحد، مساعد ذكي في مدرسة خولة بنت حكيم للتعليم الأساسي(10-12) في ظفار، عُمان. 
+    مهمتك هي مساعدة الطلاب بالإجابة على أسئلتهم المتعلقة بالقبول الموحد للمؤسسات التعليمية العالية في عُمان.
+    
+    يجب أن تكون إجاباتك دقيقة ومستندة فقط على المعلومات الموجودة في "دليل الطالب" للقبول الموحد.
+    
+    فيما يلي الأجزاء ذات الصلة من دليل الطالب التي يجب أن تعتمد عليها في إجاباتك:
+    
+    ${relevantGuideContent}
+    
+    استخدم لهجة ودودة ولطيفة في ردودك. حاول تحديد جنس المستخدم من خلال المحادثة:
+    
+    1. إذا كان المستخدم ذكراً، استخدم صيغة المذكر مثل "عزيزي الطالب"، "أحسنت"، "شكراً لك"، "يمكنك"، إلخ.
+    2. إذا كانت المستخدمة أنثى، استخدم صيغة المؤنث مثل "عزيزتي الطالبة"، "أحسنتِ"، "شكراً لكِ"، "يمكنكِ"، إلخ.
+    3. إذا لم تتمكن من تحديد الجنس، استخدم صيغة محايدة أو اجمع بين الصيغتين مثل "عزيزي الطالب/عزيزتي الطالبة".
+    
+    كن لطيفاً ومتعاطفاً في ردودك، واستخدم عبارات تشجيعية وداعمة.
+    
+    إذا لم تكن المعلومات متوفرة في دليل الطالب، اعتذر بلطف وأخبر المستخدم أن هذه المعلومات غير متوفرة في دليل القبول الموحد.
+    
+    عند الإجابة على أسئلة حول برامج دراسية محددة، قم بذكر رمز البرنامج والحد الأدنى للتقدم للبرنامج والمعلومات الإضافية المتعلقة به كما هي مذكورة في دليل الطالب.`
 
-قواعد مهمة يجب اتباعها:
-1. يجب أن تكون إجاباتك دقيقة ومستندة فقط على المعلومات الموجودة في "دليل الطالب" للالتحاق بمؤسسات التعليم العالي.
-2. لا تقدم أي معلومات غير موجودة في المراجع المتاحة لك. إذا لم تكن المعلومات متوفرة، اعتذر بوضوح واقترح على الطالب/الطالبة التواصل مع مركز القبول الموحد مباشرة.
-3. لا تختلق أي معلومات أو تخمن. استخدم فقط ما هو موجود في النصوص المرجعية.
-4. تكيف مع أسلوب المستخدم من حيث الرسمية واللهجة. إذا كان المستخدم يستخدم لهجة عامية، يمكنك الرد بأسلوب مشابه مع الحفاظ على الدقة.
-5. قدم نصائح مهنية وإرشادات لاختيار التخصص المناسب بناءً على المعلومات المتوفرة في دليل الطالب.
-6. إذا سأل المستخدم عدة أسئلة في رسالة واحدة، أجب على كل سؤال بشكل منفصل ومنظم. استخدم ترقيم أو عناوين لتنظيم إجاباتك.
-7. مهم جداً: اقرأ محتوى دليل الطالب بالكامل قبل الإجابة، ولا تتجاهل أي جزء من المحتوى.
+    // إعداد الرسائل للطلب
+    const requestMessages = [
+      {
+        role: "system",
+        content: systemMessage,
+      },
+      ...conversationHistory,
+    ]
 
-فيما يلي الأسئلة التي طرحها المستخدم:
-${userQuestions.length > 1 ? userQuestions.map((q, i) => `السؤال ${i + 1}: ${q}`).join("\n") : lastUserMessage.content}
+    // تنفيذ محاولات متعددة باستخدام نماذج مختلفة
+    let lastError = null
+    let successfulResponse = null
 
-يجب أن تبحث في دليل الطالب للقبول الموحد للإجابة على هذه الأسئلة. تأكد من الإجابة على كل سؤال بشكل منفصل ومنظم.
-إذا كان هناك أكثر من سؤال، قم بترقيم إجاباتك بنفس ترتيب الأسئلة.
+    // دمج جميع النماذج في مصفوفة واحدة مع الحفاظ على الترتيب حسب الأولوية
+    const allModels = [...MODELS.FREE_TIER, ...MODELS.BUDGET_TIER, ...MODELS.PREMIUM_TIER]
 
-حاول تحديد جنس المستخدم من خلال المحادثة وتكيف معه مباشرة:
-
-1. إذا كان المستخدم ذكراً، استخدم صيغة المذكر مثل "عزيزي الطالب"، "أحسنت"، "شكراً لك"، "يمكنك"، إلخ.
-2. إذا كانت المستخدمة أنثى، استخدم صيغة المؤنث مثل "عزيزتي الطالبة"، "أحسنتِ"، "شكراً لكِ"، "يمكنكِ"، إلخ.
-
-استخدم أسلوب أخصائية التوجيه المهني:
-1. كوني ودودة ومتعاطفة في ردودك
-2. استخدمي عبارات تشجيعية وداعمة
-3. اهتمي بتوجيه الطلاب لاختيار التخصصات المناسبة لميولهم وقدراتهم
-4. قدمي معلومات عن فرص العمل المستقبلية للتخصصات المختلفة إذا كانت متوفرة في المراجع
-5. ساعدي الطلاب في فهم متطلبات القبول للتخصصات المختلفة
-6. شجعي الطلاب على التفكير في مستقبلهم المهني عند اختيار التخصص
-
-تذكري: إذا لم تكن المعلومات متوفرة في المراجع، اعتذري بلطف واقترحي على الطالب/الطالبة التواصل مع مركز القبول الموحد للحصول على معلومات أكثر تفصيلاً.`
-
-    try {
-      // استدعاء OpenRouter API مباشرة
-      const assistantResponse = await callOpenRouterAPI(conversationHistory, systemMessage)
-
-      // إرجاع الاستجابة الناجحة
-      return NextResponse.json({ response: assistantResponse })
-    } catch (error) {
-      console.error("Error with primary model:", error)
-
+    // تجربة كل نموذج في القائمة حتى نجد واحدًا يعمل
+    for (const model of allModels) {
       try {
-        // محاولة استخدام نماذج بديلة
-        console.log("Falling back to alternative models...")
-        const fallbackResponse = await fallbackToAlternativeModels(conversationHistory, systemMessage)
+        console.log(`Trying model: ${model}...`)
 
-        // إرجاع الاستجابة من النموذج البديل
-        return NextResponse.json({ response: fallbackResponse })
-      } catch (fallbackError) {
-        console.error("Error with fallback models:", fallbackError)
-        return NextResponse.json(
-          { error: "Failed to get a response from any model. Please try again later." },
-          { status: 500 },
-        )
+        // محاولة الاتصال بـ OpenRouter API
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "HTTP-Referer": "https://khawla-school.com",
+            "X-Title": "Khawla Chatbot",
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: requestMessages,
+            temperature: 0.7,
+            max_tokens: 1000,
+          }),
+        })
+
+        // التحقق من استجابة API
+        if (!response.ok) {
+          const errorStatus = response.status
+          let errorData
+
+          try {
+            errorData = await response.json()
+            console.error(`Model error (${errorStatus}):`, errorData)
+          } catch (e) {
+            const errorText = await response.text()
+            console.error(`Model error (${errorStatus}):`, errorText)
+            errorData = { message: errorText }
+          }
+
+          // إذا كان الخطأ هو تجاوز حد الاستخدام، جرب النموذج التالي بصمت
+          if (errorStatus === 429) {
+            console.log(`Rate limit exceeded, trying next model...`)
+            lastError = new Error(`Rate limit exceeded`)
+            continue
+          }
+
+          // إذا كان هناك خطأ آخر، ارفع استثناءً
+          throw new Error(`Error: ${JSON.stringify(errorData)}`)
+        }
+
+        // معالجة الاستجابة
+        let data
+        try {
+          data = await response.json()
+          console.log(`Received response successfully from model: ${model}`)
+
+          // التحقق من صحة بنية الاستجابة
+          if (!data || !data.choices || !data.choices.length || !data.choices[0].message) {
+            console.error(`Unexpected API response structure:`, data)
+            throw new Error(`Invalid response structure`)
+          }
+
+          // استخراج الاستجابة
+          const assistantResponse = data.choices[0].message.content
+          successfulResponse = assistantResponse
+
+          // إذا نجحت المحاولة، اخرج من الحلقة
+          break
+        } catch (parseError) {
+          console.error(`Error parsing response:`, parseError)
+          lastError = parseError
+          continue
+        }
+      } catch (modelError) {
+        console.error(`Error:`, modelError)
+        lastError = modelError
+        continue
       }
     }
+
+    // إذا لم ننجح مع أي نموذج، ارجع خطأ
+    if (!successfulResponse) {
+      console.error("All models failed:", lastError)
+      return NextResponse.json(
+        {
+          error: "عذراً، لم نتمكن من معالجة طلبك في الوقت الحالي. يرجى المحاولة مرة أخرى لاحقاً.",
+        },
+        { status: 500 },
+      )
+    }
+
+    // إرجاع الاستجابة الناجحة
+    return NextResponse.json({ response: successfulResponse })
   } catch (error) {
-    console.error("Error processing the request:", error)
-    return NextResponse.json({ error: "Failed to process the request" }, { status: 500 })
+    console.error("Error processing chat request:", error)
+    // تحسين رسالة الخطأ للمستخدم
+    const errorMessage = error instanceof Error ? error.message : "حدث خطأ أثناء معالجة طلبك"
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
