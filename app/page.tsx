@@ -223,7 +223,7 @@ export default function ChatPage() {
               <AvatarFallback className="bg-purple-700">أ</AvatarFallback>
             </Avatar>
             <h1 className="text-lg md:text-xl font-bold text-center">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-2xl md:text-4xl font-black drop-shadow-[0_3px_5px_rgba(0,0,0,0.5)] tracking-wide mb-2 relative">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-400 to-pink-400 text-2xl md:text-3xl font-extrabold drop-shadow-md tracking-wide animate-pulse">
                 Admission
               </span>
               <br />
