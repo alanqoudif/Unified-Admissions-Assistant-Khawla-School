@@ -8,11 +8,11 @@ const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "sk-or-v1-880e41550
 
 // قائمة النماذج المفضلة للاستخدام
 const PREFERRED_MODELS = [
-  "anthropic/claude-3-opus", // استخدام نموذج أكثر قوة للحصول على نتائج أفضل
-  "anthropic/claude-3-sonnet",
-  "openai/gpt-4o",
-  "google/gemini-1.5-pro",
-  "meta-llama/llama-3-70b-instruct",
+  "google/gemini-2.0-flash-exp:free", // استخدام نموذج مجاني من Google
+  "anthropic/claude-3-haiku",
+  "openai/gpt-3.5-turbo",
+  "google/gemini-1.5-flash",
+  "meta-llama/llama-3-8b-instruct",
 ];
 
 // الحد الأقصى لحجم المحتوى المرسل - تم تقليله لتجنب تجاوز حدود الرموز
@@ -162,7 +162,7 @@ ${relevantContent}`,
           "X-Title": "Khawla School Admissions Assistant",
         },
         body: JSON.stringify({
-          model: "anthropic/claude-3-haiku", // استخدام نموذج أقل تكلفة لتوفير الرصيد
+          model: "google/gemini-2.0-flash-exp:free", // استخدام نموذج مجاني من Google
           messages: apiMessages,
           temperature: 0.7,
           max_tokens: MAX_OUTPUT_TOKENS, // تقليل عدد الرموز المطلوبة في الاستجابة
