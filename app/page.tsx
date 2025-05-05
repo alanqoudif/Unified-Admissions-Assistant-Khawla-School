@@ -158,6 +158,15 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Error:", error)
 
+      // Create a more informative error message for the user
+      let errorMessage = "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى."
+
+      // If the error is related to API authentication, show a more specific message
+      if (error instanceof Error && error.message.includes("401")) {
+        errorMessage = "عذراً، هناك مشكلة في الاتصال بخدمة الذكاء الاصطناعي. يرجى التواصل مع مسؤول النظام."
+        console.error("Authentication error with OpenRouter API")
+      }
+
       // إذا كانت محاولة صامتة، لا تغير الرسائل
       if (!silentRetry) {
         setMessages((prev) =>
@@ -165,7 +174,7 @@ export default function ChatPage() {
             .filter((msg) => msg.id !== loadingMessageId)
             .concat({
               role: "error",
-              content: "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.",
+              content: errorMessage,
             }),
         )
       }
