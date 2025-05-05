@@ -66,29 +66,13 @@ function findRelevantInformation(query: string, guideContent: string): string {
   return relevantChunks.join("\n\n")
 }
 
-// تعديل قائمة النماذج المتاحة للاستخدام بحيث يكون النموذج المطلوب هو الأول في القائمة
-const MODELS = {
-  // النماذج المجانية تمامًا - نبدأ بها دائمًا
-  FREE_TIER: [
-    "google/gemini-2.0-flash-001",
-    "meta-llama/llama-4-scout:free",
-    "undi95/toppy-m-7b",
-    "google/gemini-2.5-pro-exp-03-25:free",
-    "mistralai/mistral-7b-instruct",
-    "meta-llama/llama-3-8b-instruct",
-    "nousresearch/nous-hermes-2-mixtral-8x7b-dpo",
-  ],
-  // النماذج ذات التكلفة المنخفضة - ننتقل إليها إذا فشلت النماذج المجانية
-  BUDGET_TIER: [
-    "meta-llama/llama-4-maverick",
-    "anthropic/claude-instant-v1",
-    "openai/gpt-3.5-turbo",
-    "mistralai/mixtral-8x7b-instruct",
-    "google/gemini-1.5-pro-latest",
-  ],
-  // النماذج المتقدمة - نستخدمها كملاذ أخير
-  PREMIUM_TIER: ["anthropic/claude-3-opus", "openai/gpt-4o", "google/gemini-1.5-flash"],
-}
+// قائمة النماذج المتاحة للاستخدام مع آلية الانتقال التلقائي
+const GEMINI_MODELS = [
+  "gemini-2.0-flash", // النموذج المطلوب من المستخدم
+  "gemini-1.0-pro", // نموذج احتياطي
+  "gemini-1.5-flash", // نموذج احتياطي آخر
+  "gemini-1.5-pro", // نموذج احتياطي آخر
+]
 
 export async function POST(req: NextRequest) {
   try {
@@ -124,9 +108,9 @@ export async function POST(req: NextRequest) {
       content: enhancedUserMessage.content,
     })
 
-    // التحقق من وجود مفتاح API
-    if (!process.env.OPENROUTER_API_KEY) {
-      console.error("OpenRouter API key is missing")
+    // التحقق من وجود مفتاح API لـ Gemini
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("Gemini API key is missing")
       return NextResponse.json({ error: "مفتاح API غير متوفر. يرجى التواصل مع مسؤول النظام." }, { status: 500 })
     }
 
@@ -156,122 +140,96 @@ export async function POST(req: NextRequest) {
     
     عند الإجابة على أسئلة حول برامج دراسية محددة، قم بذكر رمز البرنامج والحد الأدنى للتقدم للبرنامج والمعلومات الإضافية المتعلقة به كما هي مذكورة في دليل الطالب.`
 
-    // إعداد الرسائل للطلب
-    const requestMessages = [
-      {
-        role: "system",
-        content: systemMessage,
-      },
-      ...conversationHistory,
-    ]
+    // تحضير محتوى الرسالة
+    const prompt = `${systemMessage}\n\nسؤال المستخدم: ${enhancedUserMessage.content}`
+
+    // وظيفة لإرسال طلب إلى Gemini API
+    async function callGeminiAPI(modelName: string) {
+      console.log(`Trying model: ${modelName}...`)
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": process.env.GEMINI_API_KEY as string,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1000,
+          },
+        }),
+      })
+
+      console.log(`${modelName} response status: ${response.status}`)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`${modelName} error (${response.status}):`, errorText)
+
+        // إذا كان الخطأ هو تجاوز حد الاستخدام، ارفع استثناءً خاصًا
+        if (response.status === 429) {
+          throw new Error(`RATE_LIMIT:${errorText}`)
+        }
+
+        throw new Error(`API_ERROR:${errorText}`)
+      }
+
+      const data = await response.json()
+
+      // التحقق من صحة بنية الاستجابة
+      if (!data || !data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+        console.error(`Unexpected ${modelName} response structure:`, data)
+        throw new Error(`INVALID_RESPONSE:${JSON.stringify(data)}`)
+      }
+
+      return data.candidates[0].content.parts[0].text
+    }
 
     // تنفيذ محاولات متعددة باستخدام نماذج مختلفة
     let lastError = null
-    let successfulResponse = null
 
-    // دمج جميع النماذج في مصفوفة واحدة مع الحفاظ على الترتيب حسب الأولوية
-    const allModels = [...MODELS.FREE_TIER, ...MODELS.BUDGET_TIER, ...MODELS.PREMIUM_TIER]
-
-    // تجربة كل نموذج في القائمة حتى نجد واحدًا يعمل
-    for (const model of allModels) {
+    for (const model of GEMINI_MODELS) {
       try {
-        console.log(`Trying model: ${model}...`)
+        const assistantResponse = await callGeminiAPI(model)
+        console.log(`Successfully got response from ${model}`)
 
-        // محاولة الاتصال بـ OpenRouter API
-        const apiKey = process.env.OPENROUTER_API_KEY
-        if (!apiKey) {
-          console.error("OpenRouter API key is missing or empty")
-          throw new Error("API key is missing")
-        }
+        // إرجاع الاستجابة الناجحة
+        return NextResponse.json({ response: assistantResponse })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error(`Error with ${model}:`, errorMessage)
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-            "HTTP-Referer": "https://khawla-school.com",
-            "X-Title": "Khawla Chatbot",
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: requestMessages,
-            temperature: 0.7,
-            max_tokens: 1000,
-          }),
-        })
+        lastError = error
 
-        // Add more detailed logging for debugging
-        console.log(`API request sent to model: ${model}`)
-        console.log(`Response status: ${response.status}`)
-
-        // التحقق من استجابة API
-        if (!response.ok) {
-          const errorStatus = response.status
-          let errorData
-
-          try {
-            errorData = await response.json()
-            console.error(`Model error (${errorStatus}):`, errorData)
-          } catch (e) {
-            const errorText = await response.text()
-            console.error(`Model error (${errorStatus}):`, errorText)
-            errorData = { message: errorText }
-          }
-
-          // إذا كان الخطأ هو تجاوز حد الاستخدام، جرب النموذج التالي بصمت
-          if (errorStatus === 429) {
-            console.log(`Rate limit exceeded, trying next model...`)
-            lastError = new Error(`Rate limit exceeded`)
-            continue
-          }
-
-          // إذا كان هناك خطأ آخر، ارفع استثناءً
-          throw new Error(`Error: ${JSON.stringify(errorData)}`)
-        }
-
-        // معالجة الاستجابة
-        let data
-        try {
-          data = await response.json()
-          console.log(`Received response successfully from model: ${model}`)
-
-          // التحقق من صحة بنية الاستجابة
-          if (!data || !data.choices || !data.choices.length || !data.choices[0].message) {
-            console.error(`Unexpected API response structure:`, data)
-            throw new Error(`Invalid response structure`)
-          }
-
-          // استخراج الاستجابة
-          const assistantResponse = data.choices[0].message.content
-          successfulResponse = assistantResponse
-
-          // إذا نجحت المحاولة، اخرج من الحلقة
-          break
-        } catch (parseError) {
-          console.error(`Error parsing response:`, parseError)
-          lastError = parseError
+        // إذا كان الخطأ ليس بسبب تجاوز حد الاستخدام، جرب النموذج التالي
+        if (!errorMessage.startsWith("RATE_LIMIT:")) {
           continue
         }
-      } catch (modelError) {
-        console.error(`Error:`, modelError)
-        lastError = modelError
-        continue
+
+        // إذا كان الخطأ بسبب تجاوز حد الاستخدام، انتظر قليلاً قبل المحاولة مرة أخرى
+        console.log(`Rate limit hit for ${model}, waiting before trying next model...`)
+        await new Promise((resolve) => setTimeout(resolve, 2000))
       }
     }
 
     // إذا لم ننجح مع أي نموذج، ارجع خطأ
-    if (!successfulResponse) {
-      console.error("All models failed:", lastError)
-      return NextResponse.json(
-        {
-          error: "عذراً، لم نتمكن من معالجة طلبك في الوقت الحالي. يرجى المحاولة مرة أخرى لاحقاً.",
-        },
-        { status: 500 },
-      )
-    }
-
-    // إرجاع الاستجابة الناجحة
-    return NextResponse.json({ response: successfulResponse })
+    console.error("All models failed:", lastError)
+    return NextResponse.json(
+      {
+        error: "عذراً، لم نتمكن من معالجة طلبك في الوقت الحالي. يرجى المحاولة مرة أخرى لاحقاً.",
+      },
+      { status: 500 },
+    )
   } catch (error) {
     console.error("Error processing chat request:", error)
     // تحسين رسالة الخطأ للمستخدم
